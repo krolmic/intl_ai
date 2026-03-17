@@ -1,0 +1,27 @@
+name: intl_ai
+description: ARB files AI translation that works with `flutter_localizations` and `intl`.
+version: 0.1.0
+repository: https://github.com/krolmic/intl_ai
+topics:
+  - localization
+  - internationalization
+  - translation
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  args: ^2.6.0
+  http: ^1.3.0
+  logging: ^1.3.0
+  meta: ^1.16.0
+  path: ^1.9.1
+  yaml: ^3.1.3
+
+dev_dependencies:
+  mocktail: ^1.0.4
+  test: ^1.25.15
+  very_good_analysis: ^10.2.0
+
+executables:
+  intl_ai: intl_ai
