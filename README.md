@@ -28,7 +28,7 @@ ai_translation:
   provider: anthropic # options: anthropic | openai
   model: claude-haiku-4-5
   api_key_env: ANTHROPIC_API_KEY_INTL_AI
-  ignore:
+  ignore: # words to keep untranslated (e.g. brand names)
     - "DeepTime"
     - "Flutter"
   context: "A productivity and focus timer app for deep work sessions"
@@ -66,4 +66,4 @@ dart run intl_ai translate --verbose
 
 1. Add/modify keys in `app_en.arb`.
 2. Run `dart run intl_ai translate`.
-3. Run `fvm flutter pub get` to regenerate localizations code.
+3. Run `flutter pub get` to regenerate localizations code.
