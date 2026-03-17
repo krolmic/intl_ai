@@ -8,37 +8,37 @@ ARB files AI translation that works with `flutter_localizations` and `intl`.
 
 ## Setup
 
-1. Follow the official guide [Internationalizing Flutter apps](https://docs.flutter.dev/ui/internationalization) to set up `flutter_localizations` and `intl`.
+Follow the official guide [Internationalizing Flutter apps](https://docs.flutter.dev/ui/internationalization) to set up `flutter_localizations` and `intl`.
 
-2. Add `intl_ai` under `dev_dependencies` in your `pubspec.yaml`:
+Add `intl_ai` under `dev_dependencies` in your `pubspec.yaml`:
 
-    ```yaml
-  dev_dependencies:
-    intl_ai: ^0.1.0
-    ```
+```yaml
+dev_dependencies:
+  intl_ai: ^0.1.0
+```
 
-3. Add the `ai_translation` section to your `l10n.yaml`:
+Add the `ai_translation` section to your `l10n.yaml`:
 
-    ```yaml
-  arb-dir: lib/l10n
-  template-arb-file: app_en.arb
-  output-localization-file: app_localizations.dart
+```yaml
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
 
-  ai_translation:
-    provider: anthropic # options: anthropic | openai
-    model: claude-haiku-4-5
-    api_key_env: ANTHROPIC_API_KEY_INTL_AI
-    ignore:
-      - "DeepTime"
-      - "Flutter"
-    context: "A productivity and focus timer app for deep work sessions"
-    ```
+ai_translation:
+  provider: anthropic # options: anthropic | openai
+  model: claude-haiku-4-5
+  api_key_env: ANTHROPIC_API_KEY_INTL_AI
+  ignore:
+    - "DeepTime"
+    - "Flutter"
+  context: "A productivity and focus timer app for deep work sessions"
+```
 
-4. Export your API key:
+Export your API key:
 
-    ```sh
-  export ANTHROPIC_API_KEY_INTL_AI=x
-    ```
+```sh
+export ANTHROPIC_API_KEY_INTL_AI=x
+```
 
 ## Usage
 
