@@ -16,3 +16,6 @@ pubspec.lock
 *.swp
 *.swo
 *~
+
+# Test coverage (local)
+coverage/

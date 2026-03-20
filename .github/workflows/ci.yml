@@ -35,4 +35,19 @@ jobs:
         with:
           sdk: stable
       - run: dart pub get
-      - run: dart test
+      - run: dart test --coverage=coverage
+      - run: dart pub global activate coverage
+      - run: dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+      - uses: VeryGoodOpenSource/very_good_coverage@v3
+        with:
+          path: coverage/lcov.info
+          min_coverage: 50
+      - uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          files: coverage/lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
