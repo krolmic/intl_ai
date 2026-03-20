@@ -56,8 +56,9 @@ class TranslateCommand extends Command<int> {
 
     Logger.root.level = verboseIsSet ? Level.ALL : Level.INFO;
     Logger.root.onRecord.listen((record) {
-      final prefix =
-          record.level >= Level.WARNING ? '${record.level.name}: ' : '';
+      final prefix = record.level >= Level.WARNING
+          ? '${record.level.name}: '
+          : '';
       stdout.writeln('$prefix${record.message}');
     });
 

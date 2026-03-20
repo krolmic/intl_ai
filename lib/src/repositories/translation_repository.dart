@@ -33,13 +33,13 @@ abstract class TranslationRepository {
   }) {
     final contextLine =
         appContextDescription != null && appContextDescription.isNotEmpty
-            ? 'App context: $appContextDescription\n'
-            : '';
+        ? 'App context: $appContextDescription\n'
+        : '';
 
     final ignoreSection = ignoreTerms.isNotEmpty
         ? '\nNon-translatable terms:\n'
-            '- Keep these terms exactly as written:'
-            ' ${ignoreTerms.map((term) => '"$term"').join(', ')}.\n'
+              '- Keep these terms exactly as written:'
+              ' ${ignoreTerms.map((term) => '"$term"').join(', ')}.\n'
         : '';
 
     return 'You are a professional software localization expert'

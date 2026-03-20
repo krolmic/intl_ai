@@ -116,7 +116,8 @@ class Translator {
       }
 
       _log.fine(
-        () => '[$locale] Translation complete for '
+        () =>
+            '[$locale] Translation complete for '
             '${validatedTranslations.length} key(s).',
       );
 
@@ -251,7 +252,8 @@ class Translator {
 
       if (keys.length > _batchSize) {
         _log.fine(
-          () => '[$targetLocale] Batch ${i ~/ _batchSize + 1}: '
+          () =>
+              '[$targetLocale] Batch ${i ~/ _batchSize + 1}: '
               '${batchEntryKeys.length} keys...',
         );
       }
