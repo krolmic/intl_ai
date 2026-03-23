@@ -175,5 +175,40 @@ void main() {
       final headers = captured.first as Map<String, String>;
       expect(headers['x-api-key'], 'ant-secret');
     });
+
+    test('throws IntlAiException when stop_reason is max_tokens', () async {
+      final responseBody = jsonEncode({
+        'stop_reason': 'max_tokens',
+        'content': [
+          {'text': '{"hello": "Bon'},
+        ],
+      });
+
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => http.Response(responseBody, 200));
+
+      final repository = makeRepository();
+
+      expect(
+        () => repository.getTranslations(
+          keys: {'hello': 'Hello'},
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          config: config,
+        ),
+        throwsA(
+          isA<IntlAiException>().having(
+            (e) => e.message,
+            'message',
+            contains('stop_reason: max_tokens'),
+          ),
+        ),
+      );
+    });
   });
 }
