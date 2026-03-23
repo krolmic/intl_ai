@@ -55,7 +55,7 @@ class AnthropicRepository implements TranslationRepository {
 
     final body = jsonEncode({
       'model': config.model,
-      'max_tokens': 4096,
+      'max_tokens': 8192,
       'system': systemPrompt,
       'messages': [
         {'role': 'user', 'content': userMessage},
@@ -87,6 +87,7 @@ class AnthropicRepository implements TranslationRepository {
     }
 
     final responseJson = jsonDecode(response!.body) as Map<String, dynamic>;
+    _validateStopReason(responseJson['stop_reason'] as String?);
     final contentList = responseJson['content'] as List<dynamic>;
     final firstBlock = contentList[0] as Map<String, dynamic>;
     final content = firstBlock['text'] as String;
@@ -96,6 +97,16 @@ class AnthropicRepository implements TranslationRepository {
 
   @override
   void close() => _client.close();
+
+  static void _validateStopReason(String? stopReason) {
+    if (stopReason == 'max_tokens') {
+      throw const IntlAiException(
+        'Anthropic response was truncated (stop_reason: max_tokens). '
+        'The batch may be too large. '
+        'Consider using a model with higher output limits.',
+      );
+    }
+  }
 
   Map<String, String> _getParsedResponse(String content) {
     var cleanedContent = content.trim();

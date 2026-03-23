@@ -87,6 +87,7 @@ class OpenAiRepository implements TranslationRepository {
     final responseJson = jsonDecode(response!.body) as Map<String, dynamic>;
     final choices = responseJson['choices'] as List<dynamic>;
     final firstChoice = choices[0] as Map<String, dynamic>;
+    _validateFinishReason(firstChoice['finish_reason'] as String?);
     final message = firstChoice['message'] as Map<String, dynamic>;
     final content = message['content'] as String;
 
@@ -95,6 +96,23 @@ class OpenAiRepository implements TranslationRepository {
 
   @override
   void close() => _client.close();
+
+  static void _validateFinishReason(String? finishReason) {
+    if (finishReason == 'length') {
+      throw const IntlAiException(
+        'OpenAI response was truncated (finish_reason: length). '
+        'The batch may be too large. '
+        'Consider setting max_tokens or using a model with '
+        'higher output limits.',
+      );
+    } else if (finishReason == 'content_filter') {
+      throw const IntlAiException(
+        'OpenAI response was blocked by the content filter '
+        '(finish_reason: content_filter). '
+        'The source text may contain content that triggers safety filters.',
+      );
+    }
+  }
 
   Map<String, String> _getParsedResponse(String content) {
     var cleanedContent = content.trim();
