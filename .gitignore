@@ -19,3 +19,7 @@ pubspec.lock
 
 # Test coverage (local)
 coverage/
+
+# FVM
+.fvm/
+.fvmrc
