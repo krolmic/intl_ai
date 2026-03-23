@@ -1,5 +1,6 @@
 # intl_ai
 
+[![pub package](https://img.shields.io/pub/v/intl_ai.svg)](https://pub.dev/packages/intl_ai)
 [![codecov](https://codecov.io/github/krolmic/intl_ai/graph/badge.svg?token=6MPNEHJTGC)](https://codecov.io/github/krolmic/intl_ai)
 
 ARB files AI translation that works with `flutter_localizations` and `intl`.
