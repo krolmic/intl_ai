@@ -181,5 +181,82 @@ void main() {
       final headers = captured.first as Map<String, String>;
       expect(headers['Authorization'], 'Bearer sk-secret');
     });
+
+    test('throws $IntlAiException when finish_reason is length', () async {
+      final responseBody = jsonEncode({
+        'choices': [
+          {
+            'finish_reason': 'length',
+            'message': {'content': '{"hello": "Hal'},
+          },
+        ],
+      });
+
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => http.Response(responseBody, 200));
+
+      final repository = makeRepository();
+
+      expect(
+        () => repository.getTranslations(
+          keys: {'hello': 'Hello'},
+          sourceLocale: 'en',
+          targetLocale: 'de',
+          config: config,
+        ),
+        throwsA(
+          isA<IntlAiException>().having(
+            (e) => e.message,
+            'message',
+            contains('finish_reason: length'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'throws $IntlAiException when finish_reason is content_filter',
+      () async {
+        final responseBody = jsonEncode({
+          'choices': [
+            {
+              'finish_reason': 'content_filter',
+              'message': {'content': ''},
+            },
+          ],
+        });
+
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => http.Response(responseBody, 200));
+
+        final repository = makeRepository();
+
+        expect(
+          () => repository.getTranslations(
+            keys: {'hello': 'Hello'},
+            sourceLocale: 'en',
+            targetLocale: 'de',
+            config: config,
+          ),
+          throwsA(
+            isA<IntlAiException>().having(
+              (e) => e.message,
+              'message',
+              contains('finish_reason: content_filter'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }
