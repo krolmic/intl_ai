@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:intl_ai/intl_ai.dart';
 import 'package:intl_ai/src/repositories/anthropic_repository.dart';
@@ -101,25 +103,10 @@ abstract class TranslationRepository {
     required String sourceLocale,
     required String targetLocale,
   }) {
-    final entries = keys.entries
-        .map(
-          (entry) =>
-              '  "${escapeJsonString(entry.key)}":'
-              ' "${escapeJsonString(entry.value)}"',
-        )
-        .join(',\n');
-
     return 'Translate the following JSON'
         ' from $sourceLocale to $targetLocale.\n'
         'Return ONLY a valid JSON object'
         ' with identical keys.\n\n'
-        '{\n$entries\n}';
+        '${jsonEncode(keys)}';
   }
-
-  static String escapeJsonString(String value) => value
-      .replaceAll(r'\', r'\\')
-      .replaceAll('"', r'\"')
-      .replaceAll('\n', r'\n')
-      .replaceAll('\r', r'\r')
-      .replaceAll('\t', r'\t');
 }
