@@ -5,6 +5,7 @@ import 'package:intl_ai/src/config/l10n_config.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
 import 'package:intl_ai/src/repositories/translation_repository.dart';
 import 'package:intl_ai/src/translator.dart';
+import 'package:logging/logging.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -199,6 +200,69 @@ ai_translation:
           targetLocale: 'fr',
           config: any(named: 'config'),
         ),
+      );
+    });
+  });
+
+  group('Translator key validation', () {
+    test('logs warning when keys are missing from AI response', () async {
+      File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
+{
+  "@@locale": "de"
+}
+''');
+
+      when(
+        () => mockRepository.getTranslations(
+          keys: any(named: 'keys'),
+          sourceLocale: 'en',
+          targetLocale: 'de',
+          config: any(named: 'config'),
+        ),
+      ).thenAnswer((_) async => {});
+
+      final logs = <LogRecord>[];
+      final sub = Logger('IntlAi.Translator').onRecord.listen(logs.add);
+
+      final translator = Translator(
+        config: config,
+        projectRoot: tempDir.path,
+        repository: mockRepository,
+      );
+
+      await translator.translateLocales(retranslateAll: true);
+      await sub.cancel();
+
+      verify(
+        () => mockRepository.getTranslations(
+          keys: any(named: 'keys'),
+          sourceLocale: 'en',
+          targetLocale: 'de',
+          config: any(named: 'config'),
+        ),
+      ).called(1);
+
+      expect(
+        logs.any(
+          (r) =>
+              r.level == Level.WARNING &&
+              r.message.contains('key(s) missing from AI response'),
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('TranslationRepository.getSystemPrompt', () {
+    test('requires all keys in output', () {
+      final prompt = TranslationRepository.getSystemPrompt(
+        sourceLocale: 'en',
+        targetLocale: 'de',
+        ignoreTerms: [],
+      );
+      expect(
+        prompt,
+        contains('Every key from the input MUST appear in the output'),
       );
     });
   });
