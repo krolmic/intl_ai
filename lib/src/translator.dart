@@ -237,6 +237,24 @@ class Translator {
     return locales..sort();
   }
 
+  void _validateReturnedKeys({
+    required List<String> requestedKeys,
+    required List<String> returnedKeys,
+    required String targetLocale,
+  }) {
+    final returnedSet = returnedKeys.toSet();
+    final missingKeys = requestedKeys
+        .where((k) => !returnedSet.contains(k))
+        .toList();
+
+    if (missingKeys.isNotEmpty) {
+      _log.warning(
+        '[$targetLocale] ${missingKeys.length}/${requestedKeys.length}'
+        ' key(s) missing from AI response: ${missingKeys.join(', ')}',
+      );
+    }
+  }
+
   Future<Map<String, String>> _translateAllEntries({
     required Map<String, String> entriesToTranslate,
     required String targetLocale,
@@ -263,6 +281,12 @@ class Translator {
         sourceLocale: config.templateLocale,
         targetLocale: targetLocale,
         config: config.aiTranslationConfig,
+      );
+
+      _validateReturnedKeys(
+        requestedKeys: batchEntryKeys,
+        returnedKeys: batchResult.keys.toList(),
+        targetLocale: targetLocale,
       );
 
       result.addAll(batchResult);
