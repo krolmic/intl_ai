@@ -258,7 +258,7 @@ ai_translation:
       final prompt = TranslationRepository.getSystemPrompt(
         sourceLocale: 'en',
         targetLocale: 'de',
-        ignoreTerms: [],
+        doNotTranslatePhrases: [],
       );
       expect(
         prompt,

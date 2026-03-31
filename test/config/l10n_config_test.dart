@@ -29,7 +29,7 @@ ai_translation:
   provider: openai
   model: gpt-4.1-mini
   api_key_env: OPENAI_API_KEY
-  ignore:
+  do_not_translate_phrases:
     - Deep Work
   context: Focus timer
 ''');
@@ -41,7 +41,7 @@ ai_translation:
       expect(config.outputLocalizationFile, 'app_localizations.dart');
       expect(config.aiTranslationConfig.provider, AiTranslationProvider.openai);
       expect(config.aiTranslationConfig.model, 'gpt-4.1-mini');
-      expect(config.aiTranslationConfig.ignore, ['Deep Work']);
+      expect(config.aiTranslationConfig.doNotTranslatePhrases, ['Deep Work']);
       expect(config.aiTranslationConfig.context, 'Focus timer');
     });
 

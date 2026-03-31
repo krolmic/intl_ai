@@ -6,7 +6,7 @@ class AiTranslationConfig {
     required this.provider,
     required this.model,
     required this.apiKeyEnv,
-    this.ignore = const [],
+    this.doNotTranslatePhrases = const [],
     this.context,
   });
 
@@ -30,16 +30,16 @@ class AiTranslationConfig {
       throw const FormatException('ai_translation.api_key_env is required');
     }
 
-    final ignoreRaw = map['ignore'];
-    final ignore = <String>[];
-    if (ignoreRaw != null) {
-      if (ignoreRaw is List) {
-        for (final item in ignoreRaw) {
-          ignore.add(item.toString());
+    final rawDoNotTranslatePhrases = map['do_not_translate_phrases'];
+    final doNotTranslatePhrases = <String>[];
+    if (rawDoNotTranslatePhrases != null) {
+      if (rawDoNotTranslatePhrases is List) {
+        for (final item in rawDoNotTranslatePhrases) {
+          doNotTranslatePhrases.add(item.toString());
         }
       } else {
         throw const FormatException(
-          'ai_translation.ignore must be a list of strings',
+          'ai_translation.do_not_translate_phrases must be a list of strings',
         );
       }
     }
@@ -50,7 +50,7 @@ class AiTranslationConfig {
       provider: provider,
       model: model.toString(),
       apiKeyEnv: apiKeyEnv.toString(),
-      ignore: List.unmodifiable(ignore),
+      doNotTranslatePhrases: List.unmodifiable(doNotTranslatePhrases),
       context: context,
     );
   }
@@ -58,7 +58,7 @@ class AiTranslationConfig {
   final AiTranslationProvider provider;
   final String model;
   final String apiKeyEnv;
-  final List<String> ignore;
+  final List<String> doNotTranslatePhrases;
   final String? context;
 
   @override
