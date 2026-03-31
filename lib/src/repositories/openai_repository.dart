@@ -43,7 +43,7 @@ class OpenAiRepository implements TranslationRepository {
     final systemPrompt = TranslationRepository.getSystemPrompt(
       sourceLocale: sourceLocale,
       targetLocale: targetLocale,
-      ignoreTerms: config.ignore,
+      doNotTranslatePhrases: config.doNotTranslatePhrases,
       appContextDescription: config.context,
     );
     final userMessage = TranslationRepository.getUserMessage(

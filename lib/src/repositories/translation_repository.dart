@@ -30,7 +30,7 @@ abstract class TranslationRepository {
   static String getSystemPrompt({
     required String sourceLocale,
     required String targetLocale,
-    required List<String> ignoreTerms,
+    required List<String> doNotTranslatePhrases,
     String? appContextDescription,
   }) {
     final contextLine =
@@ -38,10 +38,10 @@ abstract class TranslationRepository {
         ? 'App context: $appContextDescription\n'
         : '';
 
-    final ignoreSection = ignoreTerms.isNotEmpty
+    final ignoreSection = doNotTranslatePhrases.isNotEmpty
         ? '\nNon-translatable terms:\n'
               '- Keep these terms exactly as written:'
-              ' ${ignoreTerms.map((term) => '"$term"').join(', ')}.\n'
+              ' ${doNotTranslatePhrases.map((term) => '"$term"').join(', ')}.\n'
         : '';
 
     return 'You are a professional software localization expert'

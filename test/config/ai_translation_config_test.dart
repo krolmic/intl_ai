@@ -8,14 +8,14 @@ void main() {
         'provider': 'openai',
         'model': 'gpt-4.1-mini',
         'api_key_env': 'OPENAI_API_KEY',
-        'ignore': ['Deep Work', 'Flutter'],
+        'do_not_translate_phrases': ['Deep Work', 'Flutter'],
         'context': 'A focus timer app',
       });
 
       expect(config.provider, AiTranslationProvider.openai);
       expect(config.model, 'gpt-4.1-mini');
       expect(config.apiKeyEnv, 'OPENAI_API_KEY');
-      expect(config.ignore, ['Deep Work', 'Flutter']);
+      expect(config.doNotTranslatePhrases, ['Deep Work', 'Flutter']);
       expect(config.context, 'A focus timer app');
     });
 
@@ -27,7 +27,7 @@ void main() {
       });
 
       expect(config.provider, AiTranslationProvider.anthropic);
-      expect(config.ignore, isEmpty);
+      expect(config.doNotTranslatePhrases, isEmpty);
       expect(config.context, isNull);
     });
 
@@ -72,13 +72,13 @@ void main() {
       );
     });
 
-    test('throws when ignore is not a list', () {
+    test('throws when do_not_translate_phrases is not a list', () {
       expect(
         () => AiTranslationConfig.fromYaml(const {
           'provider': 'openai',
           'model': 'gpt-4',
           'api_key_env': 'KEY',
-          'ignore': 'single string',
+          'do_not_translate_phrases': 'single string',
         }),
         throwsA(isA<FormatException>()),
       );
