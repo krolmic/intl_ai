@@ -307,4 +307,170 @@ ai_translation:
       expect(translator.applyDryRun, throwsA(isA<IntlAiException>()));
     });
   });
+
+  group('Translator metadata preservation', () {
+    setUp(() {
+      // Template with @key metadata
+      File(p.join(arbDir.path, 'app_en.arb')).writeAsStringSync('''
+{
+  "@@locale": "en",
+  "appTitle": "Deep Work Timer",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Label for the cancel button"
+  }
+}
+''');
+    });
+
+    test('carries template @key metadata into translated ARB file', () async {
+      File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
+{
+  "@@locale": "de",
+  "appTitle": "Deep Work Timer"
+}
+''');
+
+      when(
+        () => mockRepository.getTranslations(
+          keys: {'cancel': 'Cancel'},
+          sourceLocale: 'en',
+          targetLocale: 'de',
+          config: any(named: 'config'),
+        ),
+      ).thenAnswer((_) async => {'cancel': 'Abbrechen'});
+
+      final translator = Translator(
+        config: config,
+        projectRoot: tempDir.path,
+        repository: mockRepository,
+      );
+
+      await translator.translateLocales();
+
+      final deContent = File(
+        p.join(arbDir.path, 'app_de.arb'),
+      ).readAsStringSync();
+      expect(deContent, contains('"@appTitle"'));
+      expect(deContent, contains('The title of the application'));
+      expect(deContent, contains('"@cancel"'));
+      expect(deContent, contains('Label for the cancel button'));
+    });
+
+    test('preserves existing target @key metadata not in template', () async {
+      File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
+{
+  "@@locale": "de",
+  "appTitle": "Deep Work Timer",
+  "@appTitle": {
+    "description": "Existing de description",
+    "x-custom": "custom-value"
+  }
+}
+''');
+
+      when(
+        () => mockRepository.getTranslations(
+          keys: {'cancel': 'Cancel'},
+          sourceLocale: 'en',
+          targetLocale: 'de',
+          config: any(named: 'config'),
+        ),
+      ).thenAnswer((_) async => {'cancel': 'Abbrechen'});
+
+      final translator = Translator(
+        config: config,
+        projectRoot: tempDir.path,
+        repository: mockRepository,
+      );
+
+      await translator.translateLocales();
+
+      final deContent = File(
+        p.join(arbDir.path, 'app_de.arb'),
+      ).readAsStringSync();
+      // Template @appTitle metadata should override existing target metadata.
+      expect(deContent, contains('The title of the application'));
+    });
+
+    test(
+      'removes orphan @key metadata with no corresponding entry',
+      () async {
+        // Simulate an ARB file that has @orphanMeta but no "orphanMeta" entry.
+        // This can happen if a key was deleted in the template
+        // but its metadata was left behind.
+        File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
+{
+  "@@locale": "de",
+  "appTitle": "Deep Work Timer",
+  "@orphanMeta": {
+    "description": "Orphan metadata with no matching entry"
+  }
+}
+''');
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: {'cancel': 'Cancel'},
+            sourceLocale: 'en',
+            targetLocale: 'de',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer((_) async => {'cancel': 'Abbrechen'});
+
+        final translator = Translator(
+          config: config,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales();
+
+        final deContent = File(
+          p.join(arbDir.path, 'app_de.arb'),
+        ).readAsStringSync();
+        expect(deContent, isNot(contains('"@orphanMeta"')));
+      },
+    );
+
+    test('applyDryRun carries template @key metadata', () async {
+      File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
+{
+  "@@locale": "de",
+  "appTitle": "Deep Work Timer"
+}
+''');
+
+      File(p.join(arbDir.path, '.intl_ai_dry_run.json')).writeAsStringSync('''
+{
+  "generated_at": "2026-01-01T00:00:00Z",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "template_locale": "en",
+  "translations": {
+    "de": {
+      "cancel": "Abbrechen"
+    }
+  }
+}
+''');
+
+      final translator = Translator(
+        config: config,
+        projectRoot: tempDir.path,
+        repository: mockRepository,
+      );
+
+      await translator.applyDryRun();
+
+      final deContent = File(
+        p.join(arbDir.path, 'app_de.arb'),
+      ).readAsStringSync();
+      expect(deContent, contains('"@cancel"'));
+      expect(deContent, contains('Label for the cancel button'));
+    });
+  });
 }

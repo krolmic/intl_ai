@@ -128,6 +128,7 @@ class Translator {
           outputPath: targetPath,
           locale: locale,
           existingArbFile: existingArbFile,
+          template: template,
           newTranslations: validatedTranslations,
         );
         _log.fine(() => '[$locale] Wrote $targetPath');
@@ -163,6 +164,9 @@ class Translator {
       );
     }
 
+    final templatePath = p.join(config.arbDirectory, config.templateArbFile);
+    final template = ArbFile.fromFile(templatePath);
+
     for (final entry in dryRunResult.translations.entries) {
       final locale = entry.key;
       final translations = entry.value;
@@ -180,6 +184,7 @@ class Translator {
         outputPath: targetPath,
         locale: locale,
         existingArbFile: existingArbFile,
+        template: template,
         newTranslations: translations,
       );
       _log.fine(
@@ -194,16 +199,52 @@ class Translator {
     required String outputPath,
     required String locale,
     required ArbFile existingArbFile,
+    required ArbFile template,
     required Map<String, String> newTranslations,
   }) {
     final mergedEntries = Map<String, String>.from(existingArbFile.entries)
       ..addAll(newTranslations);
 
+    final mergedMetadata = _mergeMetadata(
+      existingMetadata: existingArbFile.metadata,
+      templateMetadata: template.metadata,
+      entryKeys: mergedEntries.keys,
+    );
+    _removeStaleMetadataKeys(mergedMetadata, mergedEntries);
+    mergedMetadata['@@locale'] = locale;
+
     ArbFile(
       locale: locale,
       entries: mergedEntries,
-      metadata: {'@@locale': locale},
+      metadata: mergedMetadata,
     ).writeToFile(outputPath);
+  }
+
+  Map<String, dynamic> _mergeMetadata({
+    required Map<String, dynamic> existingMetadata,
+    required Map<String, dynamic> templateMetadata,
+    required Iterable<String> entryKeys,
+  }) {
+    final merged = Map<String, dynamic>.from(existingMetadata);
+    for (final key in entryKeys) {
+      final metaKey = '@$key';
+      if (templateMetadata.containsKey(metaKey)) {
+        merged[metaKey] = templateMetadata[metaKey];
+      }
+    }
+    return merged;
+  }
+
+  void _removeStaleMetadataKeys(
+    Map<String, dynamic> metadata,
+    Map<String, String> entries,
+  ) {
+    metadata.removeWhere(
+      (k, _) =>
+          k.startsWith('@') &&
+          !k.startsWith('@@') &&
+          !entries.containsKey(k.substring(1)),
+    );
   }
 
   List<String> _detectTargetLocales() {
