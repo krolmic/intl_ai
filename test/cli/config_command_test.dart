@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:intl_ai/src/cli/config_command.dart';
-import 'package:intl_ai/src/config/model_options.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -141,7 +140,7 @@ void main() {
           choices: any<List<String>>(named: 'choices'),
           defaultValue: any<String>(named: 'defaultValue'),
         ),
-      ).thenReturn(otherModelOption);
+      ).thenReturn('Other (enter manually)');
 
       when(() => logger.prompt('Enter model name:')).thenReturn('custom-model');
 
@@ -180,7 +179,6 @@ void main() {
     });
 
     test('prefills existing config values in update mode', () async {
-      // Create existing config
       File(p.join(tempDir.path, 'l10n.yaml')).writeAsStringSync(
         'arb-dir: lib/l10n\n'
         'template-arb-file: app_en.arb\n'
@@ -197,7 +195,6 @@ void main() {
       final command = ConfigCommand(logger: logger);
       await command.run();
 
-      // Verify chooseOne was called with defaultValue for provider
       verify(
         () => logger.chooseOne(
           'Select provider:',
@@ -231,7 +228,6 @@ void main() {
         ),
       ).thenReturn('OPENAI_API_KEY');
 
-      // First call: Add phrase, second call: Done
       var callCount = 0;
       when(
         () => logger.chooseOne(

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:intl_ai/src/cli/project_root.dart';
+import 'package:intl_ai/src/cli/utils.dart';
 import 'package:intl_ai/src/config/l10n_config.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
 import 'package:intl_ai/src/translator.dart';
@@ -69,7 +69,7 @@ class TranslateCommand extends Command<int> {
       return 1;
     }
 
-    final projectRoot = findProjectRoot();
+    final projectRoot = getConfigDirectory();
     if (projectRoot == null) {
       stderr.writeln(
         'Error: Could not find l10n.yaml. '

@@ -27,7 +27,6 @@ class ConfigWriter {
     );
 
     if (aiTranslationIndex == -1) {
-      // Append to existing file
       final content = file.readAsStringSync();
       final needsNewline = content.isNotEmpty && !content.endsWith('\n');
       file.writeAsStringSync(
@@ -37,11 +36,9 @@ class ConfigWriter {
       return;
     }
 
-    // Replace existing ai_translation section
     final before = lines.sublist(0, aiTranslationIndex);
     final after = <String>[];
     var i = aiTranslationIndex + 1;
-    // Skip all indented lines (part of ai_translation section)
     while (i < lines.length) {
       final line = lines[i];
       if (line.isEmpty || line.startsWith(' ') || line.startsWith('\t')) {
@@ -68,24 +65,24 @@ class ConfigWriter {
     final buffer = StringBuffer()
       ..writeln('ai_translation:')
       ..writeln('  provider: ${config.provider.name}')
-      ..writeln('  model: ${_quoteIfNeeded(config.model)}')
-      ..writeln('  api_key_env: ${_quoteIfNeeded(config.apiKeyEnv)}');
+      ..writeln('  model: ${_escapeForYaml(config.model)}')
+      ..writeln('  api_key_env: ${_escapeForYaml(config.apiKeyEnv)}');
 
     if (config.doNotTranslatePhrases.isNotEmpty) {
       buffer.writeln('  do_not_translate_phrases:');
       for (final phrase in config.doNotTranslatePhrases) {
-        buffer.writeln('    - ${_quoteIfNeeded(phrase)}');
+        buffer.writeln('    - ${_escapeForYaml(phrase)}');
       }
     }
 
     if (config.context != null) {
-      buffer.writeln('  context: ${_quoteIfNeeded(config.context!)}');
+      buffer.writeln('  context: ${_escapeForYaml(config.context!)}');
     }
 
     return buffer.toString();
   }
 
-  static String _quoteIfNeeded(String value) {
+  static String _escapeForYaml(String value) {
     if (value.contains(': ') ||
         value.contains('#') ||
         value.startsWith(' ') ||

@@ -1,13 +1,52 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:intl_ai/src/cli/project_root.dart';
+import 'package:intl_ai/src/cli/utils.dart';
 import 'package:intl_ai/src/config/ai_translation_config.dart';
 import 'package:intl_ai/src/config/config_writer.dart';
 import 'package:intl_ai/src/config/l10n_config.dart';
-import 'package:intl_ai/src/config/model_options.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
+
+const _anthropicModels = <String>[
+  'claude-opus-4-6',
+  'claude-sonnet-4-6',
+  'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-5-20250929',
+  'claude-opus-4-5-20251101',
+  'claude-opus-4-1-20250805',
+  'claude-sonnet-4-20250514',
+  'claude-opus-4-20250514',
+];
+
+const _openaiModels = <String>[
+  'gpt-5.4',
+  'gpt-5.4-pro',
+  'gpt-5.4-mini',
+  'gpt-5.4-nano',
+  'gpt-5-mini',
+  'gpt-5-nano',
+  'gpt-5',
+  'gpt-4.1',
+  'gpt-5.2',
+  'gpt-5.1',
+  'gpt-5.2-pro',
+  'gpt-5-pro',
+  'o3-pro',
+  'o3',
+  'o4-mini',
+  'gpt-4.1-mini',
+  'gpt-4.1-nano',
+  'o3-mini',
+  'o1',
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4-turbo',
+  'gpt-3.5-turbo',
+  'gpt-4',
+];
+
+const _otherModelOption = 'Other (enter manually)';
 
 class ConfigCommand extends Command<int> {
   ConfigCommand({Logger? logger}) : _logger = logger ?? Logger();
@@ -23,12 +62,12 @@ class ConfigCommand extends Command<int> {
 
   @override
   Future<int> run() async {
-    final projectRoot = findProjectRoot();
-    final yamlPath = projectRoot != null
-        ? p.join(projectRoot, 'l10n.yaml')
+    final configDirectory = getConfigDirectory();
+    final yamlPath = configDirectory != null
+        ? p.join(configDirectory, 'l10n.yaml')
         : p.join(Directory.current.path, 'l10n.yaml');
 
-    final existing = _tryLoadExistingConfig(projectRoot);
+    final existing = _tryLoadExistingConfig(configDirectory);
 
     final provider = _promptProvider(existing?.provider);
     final model = _promptModel(provider, existing?.model);
@@ -52,10 +91,10 @@ class ConfigCommand extends Command<int> {
     return 0;
   }
 
-  AiTranslationConfig? _tryLoadExistingConfig(String? projectRoot) {
-    if (projectRoot == null) return null;
+  AiTranslationConfig? _tryLoadExistingConfig(String? configDirectory) {
+    if (configDirectory == null) return null;
     try {
-      final config = L10nConfig.load(projectRoot);
+      final config = L10nConfig.load(configDirectory);
       return config.aiTranslationConfig;
     } on Exception {
       return null;
@@ -74,13 +113,12 @@ class ConfigCommand extends Command<int> {
 
   String _promptModel(AiTranslationProvider provider, String? current) {
     final models = switch (provider) {
-      AiTranslationProvider.openai => openaiModels,
-      AiTranslationProvider.anthropic => anthropicModels,
+      AiTranslationProvider.openai => _openaiModels,
+      AiTranslationProvider.anthropic => _anthropicModels,
     };
 
-    final choices = [...models, otherModelOption];
+    final choices = [...models, _otherModelOption];
 
-    // If current value exists but isn't in the list, add it
     if (current != null && !models.contains(current)) {
       choices.insert(0, current);
     }
@@ -95,7 +133,7 @@ class ConfigCommand extends Command<int> {
       defaultValue: defaultValue,
     );
 
-    if (result == otherModelOption) {
+    if (result == _otherModelOption) {
       return _logger.prompt('Enter model name:');
     }
 
