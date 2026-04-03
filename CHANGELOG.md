@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0]
+
+- [#40](https://github.com/krolmic/intl_ai/issues/40) Add interactive mode for adding / updating config.
+- [#39](https://github.com/krolmic/intl_ai/issues/39) Replace ignore with do_not_translate_phrases in README.
+
 ## 0.2.0
 
 ### Breaking changes
