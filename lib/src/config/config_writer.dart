@@ -8,16 +8,10 @@ class ConfigWriter {
     AiTranslationConfig config,
   ) {
     final file = File(yamlPath);
-    final section = _buildAiTranslationSection(config);
+    final section = _getAiTranslationSection(config);
 
     if (!file.existsSync()) {
-      file.writeAsStringSync(
-        'arb-dir: lib/l10n\n'
-        'template-arb-file: app_en.arb\n'
-        'output-localization-file: app_localizations.dart\n'
-        '\n'
-        '$section',
-      );
+      _createFileWithDefaults(file, section);
       return;
     }
 
@@ -27,18 +21,40 @@ class ConfigWriter {
     );
 
     if (aiTranslationIndex == -1) {
-      final content = file.readAsStringSync();
-      final needsNewline = content.isNotEmpty && !content.endsWith('\n');
-      file.writeAsStringSync(
-        '${needsNewline ? '\n' : ''}\n$section',
-        mode: FileMode.append,
-      );
+      _appendSectionToFile(file, section);
       return;
     }
 
-    final before = lines.sublist(0, aiTranslationIndex);
-    final after = <String>[];
-    var i = aiTranslationIndex + 1;
+    _replaceExistingSection(file, lines, aiTranslationIndex, section);
+  }
+
+  static void _createFileWithDefaults(File file, String section) {
+    file.writeAsStringSync(
+      'arb-dir: lib/l10n\n'
+      'template-arb-file: app_en.arb\n'
+      'output-localization-file: app_localizations.dart\n'
+      '\n'
+      '$section',
+    );
+  }
+
+  static void _appendSectionToFile(File file, String section) {
+    final content = file.readAsStringSync();
+    final needsNewline = content.isNotEmpty && !content.endsWith('\n');
+    file.writeAsStringSync(
+      '${needsNewline ? '\n' : ''}\n$section',
+      mode: FileMode.append,
+    );
+  }
+
+  static void _replaceExistingSection(
+    File file,
+    List<String> lines,
+    int sectionIndex,
+    String section,
+  ) {
+    final before = lines.sublist(0, sectionIndex);
+    var i = sectionIndex + 1;
     while (i < lines.length) {
       final line = lines[i];
       if (line.isEmpty || line.startsWith(' ') || line.startsWith('\t')) {
@@ -47,7 +63,7 @@ class ConfigWriter {
         break;
       }
     }
-    after.addAll(lines.sublist(i));
+    final after = lines.sublist(i);
 
     final buffer = StringBuffer()
       ..writeAll(before.map((line) => '$line\n'))
@@ -61,7 +77,7 @@ class ConfigWriter {
     file.writeAsStringSync(buffer.toString());
   }
 
-  static String _buildAiTranslationSection(AiTranslationConfig config) {
+  static String _getAiTranslationSection(AiTranslationConfig config) {
     final buffer = StringBuffer()
       ..writeln('ai_translation:')
       ..writeln('  provider: ${config.provider.name}')
