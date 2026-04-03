@@ -20,7 +20,7 @@ dev_dependencies:
   intl_ai: ^0.1.0
 ```
 
-Add the `ai_translation` section to your `l10n.yaml`:
+Execute `dart run intl_ai config` or add the `ai_translation` section to your `l10n.yaml`:
 
 ```yaml
 arb-dir: lib/l10n
@@ -46,6 +46,9 @@ export ANTHROPIC_API_KEY_INTL_AI=x
 ## Usage
 
 ```sh
+# Add or update ai_translation in l10n.yaml
+dart run intl_ai config
+
 # Translate missing keys
 dart run intl_ai translate
 
