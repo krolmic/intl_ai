@@ -31,7 +31,7 @@ ai_translation:
   provider: anthropic # options: anthropic | openai
   model: claude-haiku-4-5
   api_key_env: ANTHROPIC_API_KEY_INTL_AI
-  ignore: # words to keep untranslated (e.g. brand names)
+  do_not_translate_phrases:
     - "DeepTime"
     - "Flutter"
   context: "A productivity and focus timer app for deep work sessions"
