@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:intl_ai/src/config/ai_translation_config.dart';
@@ -124,6 +125,48 @@ ai_translation:
         ),
       ).called(1);
     });
+
+    test(
+      'preserves template key order when new key inserted in middle',
+      () async {
+        File(p.join(arbDir.path, 'app_en.arb')).writeAsStringSync('''
+{
+  "@@locale": "en",
+  "appTitle": "Deep Work Timer",
+  "greet": "Hello",
+  "cancel": "Cancel"
+}
+''');
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: {'greet': 'Hello', 'cancel': 'Cancel'},
+            sourceLocale: 'en',
+            targetLocale: 'de',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer(
+          (_) async => {'greet': 'Hallo', 'cancel': 'Abbrechen'},
+        );
+
+        final translator = Translator(
+          config: config,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales();
+
+        final deContent = File(
+          p.join(arbDir.path, 'app_de.arb'),
+        ).readAsStringSync();
+        final decoded = jsonDecode(deContent) as Map<String, dynamic>;
+        final entryKeys = decoded.keys
+            .where((k) => !k.startsWith('@'))
+            .toList();
+        expect(entryKeys, equals(['appTitle', 'greet', 'cancel']));
+      },
+    );
 
     test('dry-run mode does not write ARB files', () async {
       when(

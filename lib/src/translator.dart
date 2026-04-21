@@ -202,8 +202,13 @@ class Translator {
     required ArbFile template,
     required Map<String, String> newTranslations,
   }) {
-    final mergedEntries = Map<String, String>.from(existingArbFile.entries)
-      ..addAll(newTranslations);
+    final mergedEntries = <String, String>{
+      for (final key in template.entries.keys)
+        if (newTranslations.containsKey(key))
+          key: newTranslations[key]!
+        else if (existingArbFile.entries.containsKey(key))
+          key: existingArbFile.entries[key]!,
+    };
 
     final mergedMetadata = _mergeMetadata(
       existingMetadata: existingArbFile.metadata,
