@@ -247,6 +247,107 @@ ai_translation:
     });
   });
 
+  group('Translator locale validation', () {
+    test(
+      'emits WARNING when explicit targetLocale is unknown and no file exists',
+      () async {
+        when(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'en',
+            targetLocale: 'xyz',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer(
+          (_) async => {'appTitle': 'Deep Work Timer', 'cancel': 'Cancel'},
+        );
+
+        final logs = <LogRecord>[];
+        final sub = Logger('IntlAi.Translator').onRecord.listen(logs.add);
+
+        final translator = Translator(
+          config: config,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales(targetLocale: 'xyz');
+        await sub.cancel();
+
+        expect(
+          logs.any(
+            (r) => r.level == Level.WARNING && r.message.contains("'xyz'"),
+          ),
+          isTrue,
+        );
+
+        expect(
+          File(p.join(arbDir.path, 'app_xyz.arb')).existsSync(),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'auto-detect warns for unknown locale but not for valid sibling',
+      () async {
+        File(p.join(arbDir.path, 'app_freanch.arb')).writeAsStringSync('''
+{
+  "@@locale": "freanch"
+}
+''');
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'en',
+            targetLocale: 'de',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer((_) async => {'cancel': 'Abbrechen'});
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'en',
+            targetLocale: 'freanch',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer(
+          (_) async => {'appTitle': 'Deep Work Timer', 'cancel': 'Cancel'},
+        );
+
+        final logs = <LogRecord>[];
+        final sub = Logger('IntlAi.Translator').onRecord.listen(logs.add);
+
+        final translator = Translator(
+          config: config,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales();
+        await sub.cancel();
+
+        expect(
+          logs.any(
+            (r) => r.level == Level.WARNING && r.message.contains("'freanch'"),
+          ),
+          isTrue,
+        );
+
+        expect(
+          logs.any(
+            (r) =>
+                r.level == Level.WARNING &&
+                r.message.contains("unknown locale 'de'"),
+          ),
+          isFalse,
+        );
+      },
+    );
+  });
+
   group('Translator key validation', () {
     test('logs warning when keys are missing from AI response', () async {
       File(p.join(arbDir.path, 'app_de.arb')).writeAsStringSync('''
