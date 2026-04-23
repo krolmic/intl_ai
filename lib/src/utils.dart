@@ -13,7 +13,5 @@ String? getConfigDirectory() {
   }
 }
 
-/// Normalizes a locale string to the lowercase, `_`-separated form used
-/// throughout intl_ai (e.g. `de-DE` → `de_de`, `zh-Hans` → `zh_hans`).
 String canonicalizeLocale(String locale) =>
     locale.replaceAll('-', '_').toLowerCase();
