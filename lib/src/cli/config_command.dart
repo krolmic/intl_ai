@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:intl_ai/src/cli/utils.dart';
 import 'package:intl_ai/src/config/ai_translation_config.dart';
 import 'package:intl_ai/src/config/config_writer.dart';
 import 'package:intl_ai/src/config/l10n_config.dart';
+import 'package:intl_ai/src/utils.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 

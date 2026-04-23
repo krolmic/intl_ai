@@ -12,3 +12,6 @@ String? getConfigDirectory() {
     dir = parent;
   }
 }
+
+String canonicalizeLocale(String locale) =>
+    locale.replaceAll('-', '_').toLowerCase();

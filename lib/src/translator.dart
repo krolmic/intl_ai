@@ -5,6 +5,7 @@ import 'package:intl_ai/src/arb_validator.dart';
 import 'package:intl_ai/src/config/l10n_config.dart';
 import 'package:intl_ai/src/dry_run_manager.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
+import 'package:intl_ai/src/locale_validator.dart';
 import 'package:intl_ai/src/repositories/translation_repository.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
@@ -49,9 +50,28 @@ class Translator {
     for (final locale in localesToProcess) {
       final targetFilename = '${config.arbPrefix}_$locale.arb';
       final targetPath = p.join(config.arbDirectory, targetFilename);
+      final fileExists = File(targetPath).existsSync();
+
+      final targetLocaleIsSet = targetLocale != null;
+      final localeStatus = LocaleValidator.validate(locale);
+      if (localeStatus == LocaleStatus.unknown &&
+          !(targetLocaleIsSet && fileExists)) {
+        if (targetLocaleIsSet) {
+          _log.warning(
+            "Locale '$locale' is not a known CLDR locale and no existing "
+            "ARB file matches. Creating '$targetFilename'. If this was a "
+            'typo, delete the file and re-run with the correct locale.',
+          );
+        } else {
+          _log.warning(
+            "Detected ARB file '$targetFilename' with unknown locale "
+            "'$locale'. Translating anyway.",
+          );
+        }
+      }
 
       final ArbFile existingArbFile;
-      if (File(targetPath).existsSync()) {
+      if (fileExists) {
         existingArbFile = ArbFile.fromFile(targetPath);
       } else {
         existingArbFile = ArbFile(locale: locale, entries: {}, metadata: {});
