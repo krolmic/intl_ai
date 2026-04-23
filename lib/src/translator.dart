@@ -52,12 +52,11 @@ class Translator {
       final targetPath = p.join(config.arbDirectory, targetFilename);
       final fileExists = File(targetPath).existsSync();
 
-      final status = LocaleValidator.classify(
-        locale: locale,
-        fileExists: targetLocale != null && fileExists,
-      );
-      if (status == LocaleStatus.unknown) {
-        if (targetLocale != null) {
+      final targetLocaleIsSet = targetLocale != null;
+      final localeStatus = LocaleValidator.validate(locale);
+      if (localeStatus == LocaleStatus.unknown &&
+          !(targetLocaleIsSet && fileExists)) {
+        if (targetLocaleIsSet) {
           _log.warning(
             "Locale '$locale' is not a known CLDR locale and no existing "
             "ARB file matches. Creating '$targetFilename'. If this was a "

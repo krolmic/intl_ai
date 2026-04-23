@@ -1,17 +1,11 @@
 import 'package:intl_ai/src/cldr_locales.dart';
+import 'package:intl_ai/src/utils.dart';
 
-enum LocaleStatus { matchesExistingFile, knownCldr, unknown }
+enum LocaleStatus { knownCldr, unknown }
 
 class LocaleValidator {
-  static String canonicalize(String locale) =>
-      locale.replaceAll('-', '_').toLowerCase();
-
-  static LocaleStatus classify({
-    required String locale,
-    required bool fileExists,
-  }) {
-    if (fileExists) return LocaleStatus.matchesExistingFile;
-    final canonical = canonicalize(locale);
+  static LocaleStatus validate(String locale) {
+    final canonical = canonicalizeLocale(locale);
     if (kKnownCldrLocales.contains(canonical)) return LocaleStatus.knownCldr;
 
     final parts = canonical.split('_');

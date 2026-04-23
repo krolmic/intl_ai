@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:intl_ai/src/cli/utils.dart';
 import 'package:intl_ai/src/config/l10n_config.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
 import 'package:intl_ai/src/translator.dart';
+import 'package:intl_ai/src/utils.dart';
 import 'package:logging/logging.dart';
 
 class TranslateCommand extends Command<int> {
