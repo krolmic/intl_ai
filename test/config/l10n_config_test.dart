@@ -59,6 +59,34 @@ ai_translation:
       expect(config.arbPrefix, 'app');
     });
 
+    test('templateLocale derived from compound script template', () {
+      writeYaml('''
+template-arb-file: app_zh_Hans.arb
+ai_translation:
+  provider: openai
+  model: gpt-4
+  api_key_env: KEY
+''');
+
+      final config = L10nConfig.load(tempDir.path);
+      expect(config.templateLocale, 'zh_Hans');
+      expect(config.arbPrefix, 'app');
+    });
+
+    test('templateLocale derived from country-code template', () {
+      writeYaml('''
+template-arb-file: app_pt_BR.arb
+ai_translation:
+  provider: openai
+  model: gpt-4
+  api_key_env: KEY
+''');
+
+      final config = L10nConfig.load(tempDir.path);
+      expect(config.templateLocale, 'pt_BR');
+      expect(config.arbPrefix, 'app');
+    });
+
     test('defaults arb-dir when not set', () {
       writeYaml('''
 ai_translation:
