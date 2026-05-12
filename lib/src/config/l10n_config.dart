@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:intl_ai/src/config/ai_translation_config.dart';
+import 'package:intl_ai/src/utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
@@ -64,15 +65,7 @@ class L10nConfig {
   final String outputLocalizationFile;
   final AiTranslationConfig aiTranslationConfig;
 
-  String get templateLocale {
-    final name = p.basenameWithoutExtension(templateArbFile);
-    final parts = name.split('_');
-    return parts.last;
-  }
+  String get templateLocale => parseLocaleFromFilename(templateArbFile).locale;
 
-  String get arbPrefix {
-    final name = p.basenameWithoutExtension(templateArbFile);
-    final parts = name.split('_');
-    return parts.sublist(0, parts.length - 1).join('_');
-  }
+  String get arbPrefix => parseLocaleFromFilename(templateArbFile).prefix;
 }

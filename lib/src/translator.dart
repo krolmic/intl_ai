@@ -7,6 +7,7 @@ import 'package:intl_ai/src/dry_run_manager.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
 import 'package:intl_ai/src/locale_validator.dart';
 import 'package:intl_ai/src/repositories/translation_repository.dart';
+import 'package:intl_ai/src/utils.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 
@@ -279,10 +280,7 @@ class Translator {
     }
 
     final templateBasename = p.basename(config.templateArbFile);
-    final templateName = p.basenameWithoutExtension(templateBasename);
-    final parts = templateName.split('_');
-    final prefix = parts.sublist(0, parts.length - 1).join('_');
-    final templateLocale = parts.last;
+    final templateParsed = parseLocaleFromFilename(templateBasename);
 
     final locales = <String>[];
     for (final entity in dir.listSync()) {
@@ -291,13 +289,11 @@ class Translator {
       if (!basename.endsWith('.arb')) continue;
       if (basename == templateBasename) continue;
 
-      final name = p.basenameWithoutExtension(basename);
-      if (!name.startsWith('${prefix}_')) continue;
+      final parsed = parseLocaleFromFilename(basename);
+      if (parsed.prefix != templateParsed.prefix) continue;
+      if (parsed.locale == templateParsed.locale) continue;
 
-      final locale = name.substring(prefix.length + 1);
-      if (locale.isNotEmpty && locale != templateLocale) {
-        locales.add(locale);
-      }
+      locales.add(parsed.locale);
     }
 
     return locales..sort();

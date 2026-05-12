@@ -202,6 +202,94 @@ ai_translation:
       );
     });
 
+    test(
+      'compound template detects simple and compound target locales',
+      () async {
+        File(p.join(tempDir.path, 'l10n.yaml')).writeAsStringSync('''
+arb-dir: lib/l10n
+template-arb-file: app_zh_Hans.arb
+output-localization-file: app_localizations.dart
+ai_translation:
+  provider: openai
+  model: gpt-4.1-mini
+  api_key_env: TEST_KEY
+''');
+        File(p.join(arbDir.path, 'app_en.arb')).deleteSync();
+        File(p.join(arbDir.path, 'app_de.arb')).deleteSync();
+
+        File(p.join(arbDir.path, 'app_zh_Hans.arb')).writeAsStringSync('''
+{
+  "@@locale": "zh_Hans",
+  "appTitle": "深度工作计时器"
+}
+''');
+        File(p.join(arbDir.path, 'app_en.arb')).writeAsStringSync('''
+{
+  "@@locale": "en"
+}
+''');
+        File(p.join(arbDir.path, 'app_pt_BR.arb')).writeAsStringSync('''
+{
+  "@@locale": "pt_BR"
+}
+''');
+
+        final compoundConfig = L10nConfig.load(tempDir.path);
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'zh_Hans',
+            targetLocale: 'en',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer((_) async => {'appTitle': 'Deep Work Timer'});
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'zh_Hans',
+            targetLocale: 'pt_BR',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer((_) async => {'appTitle': 'Cronômetro de Trabalho'});
+
+        final translator = Translator(
+          config: compoundConfig,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales();
+
+        verify(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'zh_Hans',
+            targetLocale: 'en',
+            config: any(named: 'config'),
+          ),
+        ).called(1);
+        verify(
+          () => mockRepository.getTranslations(
+            keys: any(named: 'keys'),
+            sourceLocale: 'zh_Hans',
+            targetLocale: 'pt_BR',
+            config: any(named: 'config'),
+          ),
+        ).called(1);
+
+        expect(
+          File(p.join(arbDir.path, 'app_en.arb')).readAsStringSync(),
+          contains('Deep Work Timer'),
+        );
+        expect(
+          File(p.join(arbDir.path, 'app_pt_BR.arb')).readAsStringSync(),
+          contains('Cronômetro'),
+        );
+      },
+    );
+
     test('locale flag translates only specified locale', () async {
       File(p.join(arbDir.path, 'app_fr.arb')).writeAsStringSync('''
 {

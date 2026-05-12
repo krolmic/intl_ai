@@ -55,6 +55,18 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('derives compound locale from filename when @@locale missing', () {
+      final path = p.join(testDirectory.path, 'app_zh_Hans.arb');
+      File(path).writeAsStringSync('''
+{
+  "appTitle": "Deep Work Timer"
+}
+''');
+
+      final arb = ArbFile.fromFile(path);
+      expect(arb.locale, 'zh_Hans');
+    });
   });
 
   group('ArbFile.writeToFile', () {

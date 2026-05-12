@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:intl_ai/src/utils.dart';
 import 'package:path/path.dart' as p;
 
 class ArbFile {
@@ -68,9 +69,6 @@ class ArbFile {
     File(path).writeAsStringSync('{\n${lines.join(',\n')}\n}\n');
   }
 
-  static String _localeFromFilename(String basename) {
-    final name = p.basenameWithoutExtension(basename);
-    final parts = name.split('_');
-    return parts.last;
-  }
+  static String _localeFromFilename(String basename) =>
+      parseLocaleFromFilename(basename).locale;
 }
