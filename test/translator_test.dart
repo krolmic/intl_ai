@@ -485,6 +485,76 @@ ai_translation:
     });
   });
 
+  group('Translator ICU validation', () {
+    test(
+      'falls back when translation uses invalid plural category for locale',
+      () async {
+        File(p.join(arbDir.path, 'app_en.arb')).writeAsStringSync('''
+{
+  "@@locale": "en",
+  "itemCount": "{count, plural, one{x} other{y}}"
+}
+''');
+
+        File(p.join(arbDir.path, 'app_fr.arb')).writeAsStringSync('''
+{
+  "@@locale": "fr",
+  "itemCount": "{count, plural, one{existing} other{translations}}"
+}
+''');
+
+        when(
+          () => mockRepository.getTranslations(
+            keys: {'itemCount': '{count, plural, one{x} other{y}}'},
+            sourceLocale: 'en',
+            targetLocale: 'fr',
+            config: any(named: 'config'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'itemCount': '{count, plural, few{bad} other{translation}}',
+          },
+        );
+
+        final logs = <LogRecord>[];
+        final sub = Logger('IntlAi.Translator').onRecord.listen(logs.add);
+
+        final translator = Translator(
+          config: config,
+          projectRoot: tempDir.path,
+          repository: mockRepository,
+        );
+
+        await translator.translateLocales(
+          retranslateAll: true,
+          targetLocale: 'fr',
+        );
+        await sub.cancel();
+
+        expect(
+          logs.any(
+            (r) =>
+                r.level == Level.WARNING &&
+                r.message.contains(
+                  '[fr] Validation failed for key "itemCount": '
+                  "invalid plural category 'few' for locale 'fr'",
+                ),
+          ),
+          isTrue,
+        );
+
+        final frContent = File(
+          p.join(arbDir.path, 'app_fr.arb'),
+        ).readAsStringSync();
+        expect(
+          frContent,
+          contains('one{existing} other{translations}'),
+        );
+        expect(frContent, isNot(contains('few{bad}')));
+      },
+    );
+  });
+
   group('TranslationRepository.getSystemPrompt', () {
     test('requires all keys in output', () {
       final prompt = TranslationRepository.getSystemPrompt(
