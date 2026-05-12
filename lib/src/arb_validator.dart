@@ -1,3 +1,14 @@
+import 'dart:collection';
+
+// We access package:intl's plural-rule registry directly to detect whether a
+// locale has CLDR plural rules and to probe its supported categories. There is
+// no public API for this — see the brainstorm doc for the trade-off analysis.
+// ignore: implementation_imports
+import 'package:intl/src/plural_rules.dart' as plural_rules;
+import 'package:intl_ai/src/utils.dart';
+import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
+
 class ArbValidationResult {
   const ArbValidationResult({required this.isValid, this.error});
 
@@ -9,6 +20,8 @@ class ArbValidationResult {
 }
 
 class ArbValidator {
+  static final _log = Logger('IntlAi.ArbValidator');
+
   /// Maps ICU exact-value plural selectors to their equivalent CLDR keyword
   /// categories. When both forms appear in the same plural message, the
   /// exact-value form is redundant and causes an ICU syntax warning.
@@ -18,9 +31,79 @@ class ArbValidator {
     '=2': 'two',
   };
 
+  static const _pluralSelectGenderTypes = {'plural', 'select', 'gender'};
+
+  static const _cldrCategoryOrder = [
+    'zero',
+    'one',
+    'two',
+    'few',
+    'many',
+    'other',
+  ];
+
+  // Probe numbers chosen to flush out every CLDR category across the locales
+  // intl supports: integers cover one/two/few/many ranges (e.g. 5–6 for pl
+  // MANY, 11/21 for ru, 1_000_000 for fr/pt MANY), fractions force the
+  // non-integer OTHER cases.
+  static const _probeNumbers = <num>[
+    0,
+    1,
+    2,
+    3,
+    5,
+    6,
+    11,
+    21,
+    100,
+    101,
+    1000,
+    1000000,
+    1.5,
+    2.5,
+  ];
+
+  static final Map<String, Set<String>?> _pluralCategoryCache = {};
+
+  @visibleForTesting
+  static void resetPluralCategoryCache() => _pluralCategoryCache.clear();
+
   static List<String> extractPlaceholders(String value) {
+    final stripped = _stripIcuArgBlocks(value);
     final simple = RegExp(r'\{(\w+)\}');
-    return simple.allMatches(value).map((m) => m.group(1)!).toSet().toList();
+    return simple.allMatches(stripped).map((m) => m.group(1)!).toSet().toList();
+  }
+
+  // Removes ICU plural/select/gender arg blocks so simple-placeholder
+  // extraction doesn't pick up raw words from branch bodies (e.g. `{x}`
+  // inside `one{x}`) as if they were placeholders.
+  static String _stripIcuArgBlocks(String value) {
+    final sb = StringBuffer();
+    var i = 0;
+    final end = value.length;
+    while (i < end) {
+      final ch = value[i];
+      if (ch == "'") {
+        final next = _skipQuotedSection(value, i, end);
+        sb.write(value.substring(i, next));
+        i = next;
+        continue;
+      }
+      if (ch == '{') {
+        final closeIdx = _findMatchingClose(value, i, end);
+        final inner = value.substring(i + 1, closeIdx - 1);
+        if (_parseArgHeader(inner) != null) {
+          i = closeIdx;
+          continue;
+        }
+        sb.write(value.substring(i, closeIdx));
+        i = closeIdx;
+        continue;
+      }
+      sb.write(ch);
+      i++;
+    }
+    return sb.toString();
   }
 
   static String? validateIcuSyntax(String value) {
@@ -86,18 +169,122 @@ class ArbValidator {
     return '$before $after';
   }
 
+  /// Resolves the set of CLDR plural categories supported by [locale] by
+  /// probing `package:intl`'s plural-rule registry. Falls back to the
+  /// language subtag if the canonical locale is not registered. Returns
+  /// `null` when neither form is in the registry; results are cached per
+  /// canonical locale.
+  static Set<String>? pluralCategoriesFor(String locale) {
+    final canonical = canonicalizeLocale(locale);
+    if (_pluralCategoryCache.containsKey(canonical)) {
+      return _pluralCategoryCache[canonical];
+    }
+
+    final probed =
+        _resolvePluralCategoriesViaIntl(canonical) ??
+        _resolvePluralCategoriesViaIntl(_languageSubtag(canonical));
+    final resolved = probed == null ? null : UnmodifiableSetView(probed);
+
+    _pluralCategoryCache[canonical] = resolved;
+    if (resolved == null) {
+      _log.fine(
+        () =>
+            "Skipping plural-category validation for locale '$locale': "
+            "not in package:intl's plural-rule registry.",
+      );
+    }
+    return resolved;
+  }
+
+  static String _languageSubtag(String canonical) {
+    final idx = canonical.indexOf('_');
+    return idx == -1 ? canonical : canonical.substring(0, idx);
+  }
+
+  static Set<String>? _resolvePluralCategoriesViaIntl(String canonical) {
+    final registryKey = _findIntlRegistryKey(canonical);
+    if (registryKey == null) return null;
+
+    final rule = plural_rules.pluralRules[registryKey];
+    if (rule == null) return null;
+
+    final categories = <String>{};
+    for (final n in _probeNumbers) {
+      // Pass null precision for fractional probes so intl uses the actual
+      // decimal count (v); the default precision 0 forces v=0, masking the
+      // non-integer OTHER cases.
+      plural_rules.startRuleEvaluation(n, n is int ? 0 : null);
+      categories.add(_pluralCaseName(rule()));
+    }
+    return categories;
+  }
+
+  static String? _findIntlRegistryKey(String canonical) {
+    for (final key in plural_rules.pluralRules.keys) {
+      if (key.toLowerCase() == canonical) return key;
+    }
+    return null;
+  }
+
+  static String _pluralCaseName(plural_rules.PluralCase c) {
+    switch (c) {
+      case plural_rules.PluralCase.ZERO:
+        return 'zero';
+      case plural_rules.PluralCase.ONE:
+        return 'one';
+      case plural_rules.PluralCase.TWO:
+        return 'two';
+      case plural_rules.PluralCase.FEW:
+        return 'few';
+      case plural_rules.PluralCase.MANY:
+        return 'many';
+      case plural_rules.PluralCase.OTHER:
+        return 'other';
+    }
+  }
+
   static ArbValidationResult validateTranslation(
     String sourceText,
-    String translatedText,
-  ) {
+    String translatedText, {
+    String? targetLocale,
+  }) {
     final syntaxError = validateIcuSyntax(translatedText);
     if (syntaxError != null) {
       return ArbValidationResult(isValid: false, error: syntaxError);
     }
 
+    final sourceArgs = _extractIcuArguments(sourceText);
+    final translatedArgs = _extractIcuArguments(translatedText);
+
+    final argNameError = _validateArgNamePreservation(
+      sourceArgs,
+      translatedArgs,
+    );
+    if (argNameError != null) {
+      return ArbValidationResult(isValid: false, error: argNameError);
+    }
+
+    final otherBranchError = _validateOtherBranches(translatedArgs);
+    if (otherBranchError != null) {
+      return ArbValidationResult(isValid: false, error: otherBranchError);
+    }
+
+    if (targetLocale != null) {
+      final allowed = pluralCategoriesFor(targetLocale);
+      if (allowed != null) {
+        final pluralError = _validatePluralCategories(
+          translatedArgs,
+          targetLocale,
+          allowed,
+        );
+        if (pluralError != null) {
+          return ArbValidationResult(isValid: false, error: pluralError);
+        }
+      }
+    }
+
     final sourcePlaceholders = extractPlaceholders(sourceText);
     final translatedPlaceholders = extractPlaceholders(translatedText);
-
     for (final placeholder in sourcePlaceholders) {
       if (!translatedPlaceholders.contains(placeholder)) {
         return ArbValidationResult(
@@ -109,4 +296,253 @@ class ArbValidator {
 
     return const ArbValidationResult(isValid: true);
   }
+
+  static String? _validateArgNamePreservation(
+    List<_IcuArgument> sourceArgs,
+    List<_IcuArgument> translatedArgs,
+  ) {
+    final translatedNames = <String>{};
+    _collectArgNames(translatedArgs, translatedNames);
+    return _findMissingSourceArg(sourceArgs, translatedNames);
+  }
+
+  static String? _findMissingSourceArg(
+    List<_IcuArgument> args,
+    Set<String> translatedNames,
+  ) {
+    for (final arg in args) {
+      if (!translatedNames.contains(arg.name)) {
+        return "ICU argument '${arg.name}' missing in translation";
+      }
+      final nested = _findMissingSourceArg(arg.nested, translatedNames);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  static void _collectArgNames(
+    List<_IcuArgument> args,
+    Set<String> out,
+  ) {
+    for (final arg in args) {
+      out.add(arg.name);
+      _collectArgNames(arg.nested, out);
+    }
+  }
+
+  static String? _validateOtherBranches(List<_IcuArgument> args) {
+    for (final arg in args) {
+      if (!arg.branches.containsKey('other')) {
+        return "missing 'other' branch in ${arg.type} argument '${arg.name}'";
+      }
+      final nested = _validateOtherBranches(arg.nested);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  static String? _validatePluralCategories(
+    List<_IcuArgument> args,
+    String locale,
+    Set<String> allowed,
+  ) {
+    for (final arg in args) {
+      if (arg.type == 'plural') {
+        for (final keyword in arg.branches.keys) {
+          if (keyword.startsWith('=')) continue;
+          if (!allowed.contains(keyword)) {
+            return "invalid plural category '$keyword' for locale '$locale' "
+                '(allowed: ${_formatAllowedCategories(allowed)})';
+          }
+        }
+      }
+      final nested = _validatePluralCategories(arg.nested, locale, allowed);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  static String _formatAllowedCategories(Set<String> categories) {
+    final sorted = categories.toList()
+      ..sort(
+        (a, b) => _cldrCategoryOrder.indexOf(a) - _cldrCategoryOrder.indexOf(b),
+      );
+    return sorted.join(', ');
+  }
+
+  static List<_IcuArgument> _extractIcuArguments(String value) {
+    final out = <_IcuArgument>[];
+    _walkIcuArguments(value, 0, value.length, out);
+    return out;
+  }
+
+  static void _walkIcuArguments(
+    String value,
+    int start,
+    int end,
+    List<_IcuArgument> out,
+  ) {
+    var i = start;
+    while (i < end) {
+      final ch = value[i];
+      if (ch == "'") {
+        i = _skipQuotedSection(value, i, end);
+        continue;
+      }
+      if (ch == '{') {
+        final closeIdx = _findMatchingClose(value, i, end);
+        final inner = value.substring(i + 1, closeIdx - 1);
+        final header = _parseArgHeader(inner);
+        if (header != null) {
+          final branchesText = inner.substring(header.bodyStart);
+          final branches = _parseBranches(branchesText);
+          final nested = <_IcuArgument>[];
+          for (final body in branches.values) {
+            _walkIcuArguments(body, 0, body.length, nested);
+          }
+          out.add(
+            _IcuArgument(
+              name: header.name,
+              type: header.type,
+              branches: branches,
+              nested: nested,
+            ),
+          );
+        }
+        i = closeIdx;
+        continue;
+      }
+      i++;
+    }
+  }
+
+  static int _skipQuotedSection(String value, int start, int end) {
+    // value[start] == "'"
+    if (start + 1 >= end) return start + 1;
+
+    // '' = literal apostrophe.
+    if (value[start + 1] == "'") return start + 2;
+
+    // Apostrophe only quotes when followed by { or }.
+    if (value[start + 1] != '{' && value[start + 1] != '}') return start + 1;
+
+    var i = start + 2;
+    while (i < end) {
+      if (value[i] == "'") {
+        if (i + 1 < end && value[i + 1] == "'") {
+          i += 2;
+        } else {
+          return i + 1;
+        }
+      } else {
+        i++;
+      }
+    }
+    return i;
+  }
+
+  static int _findMatchingClose(String value, int openIdx, int end) {
+    // value[openIdx] == '{'
+    var depth = 0;
+    var i = openIdx;
+    while (i < end) {
+      final ch = value[i];
+      if (ch == "'") {
+        i = _skipQuotedSection(value, i, end);
+        continue;
+      }
+      if (ch == '{') {
+        depth++;
+      } else if (ch == '}') {
+        depth--;
+        if (depth == 0) return i + 1;
+      }
+      i++;
+    }
+    return end;
+  }
+
+  static _IcuArgHeader? _parseArgHeader(String inner) {
+    final c1 = inner.indexOf(',');
+    if (c1 == -1) return null;
+    final name = inner.substring(0, c1).trim();
+    if (name.isEmpty || !_isValidIdentifier(name)) return null;
+
+    final c2 = inner.indexOf(',', c1 + 1);
+    if (c2 == -1) return null;
+    final type = inner.substring(c1 + 1, c2).trim();
+    if (!_pluralSelectGenderTypes.contains(type)) return null;
+
+    return _IcuArgHeader(name: name, type: type, bodyStart: c2 + 1);
+  }
+
+  static bool _isValidIdentifier(String s) {
+    if (s.isEmpty) return false;
+    for (var i = 0; i < s.length; i++) {
+      final c = s.codeUnitAt(i);
+      final isAlpha = (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95;
+      final isDigit = c >= 48 && c <= 57;
+      if (i == 0 ? !isAlpha : !(isAlpha || isDigit)) return false;
+    }
+    return true;
+  }
+
+  static Map<String, String> _parseBranches(String text) {
+    final result = <String, String>{};
+    var i = 0;
+    final end = text.length;
+    while (i < end) {
+      while (i < end && _isWhitespace(text[i])) {
+        i++;
+      }
+      if (i >= end) break;
+
+      final keywordStart = i;
+      while (i < end && text[i] != '{' && !_isWhitespace(text[i])) {
+        i++;
+      }
+      final keyword = text.substring(keywordStart, i);
+      if (keyword.isEmpty) break;
+
+      while (i < end && _isWhitespace(text[i])) {
+        i++;
+      }
+      if (i >= end || text[i] != '{') break;
+
+      final closeIdx = _findMatchingClose(text, i, end);
+      final body = text.substring(i + 1, closeIdx - 1);
+      result[keyword] = body;
+      i = closeIdx;
+    }
+    return result;
+  }
+
+  static bool _isWhitespace(String ch) =>
+      ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+}
+
+class _IcuArgument {
+  _IcuArgument({
+    required this.name,
+    required this.type,
+    required this.branches,
+    required this.nested,
+  });
+
+  final String name;
+  final String type;
+  final Map<String, String> branches;
+  final List<_IcuArgument> nested;
+}
+
+class _IcuArgHeader {
+  _IcuArgHeader({
+    required this.name,
+    required this.type,
+    required this.bodyStart,
+  });
+
+  final String name;
+  final String type;
+  final int bodyStart;
 }

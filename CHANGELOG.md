@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- ICU placeholder and structure validation: mandatory `other` branch, ICU argument-name preservation, and per-locale CLDR plural-category checks ([#20](https://github.com/krolmic/intl_ai/issues/20)).
+- New `intl` runtime dependency to resolve CLDR plural categories per locale.
+
+### Changed
+
+- `ArbValidator.extractPlaceholders` now ignores tokens inside ICU plural/select/gender arg blocks (e.g. raw `{x}` in `one{x}`); ICU argument names are checked by the new validations instead.
+
 ## [0.3.0]
 
 - [#40](https://github.com/krolmic/intl_ai/issues/40) Add interactive mode for adding / updating config.

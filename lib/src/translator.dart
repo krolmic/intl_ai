@@ -120,6 +120,7 @@ class Translator {
         final result = ArbValidator.validateTranslation(
           sourceText,
           translatedText,
+          targetLocale: locale,
         );
         if (!result.isValid) {
           _log.warning(
