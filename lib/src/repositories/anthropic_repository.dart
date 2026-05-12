@@ -92,7 +92,7 @@ class AnthropicRepository implements TranslationRepository {
     final firstBlock = contentList[0] as Map<String, dynamic>;
     final content = firstBlock['text'] as String;
 
-    return _getParsedResponse(content);
+    return TranslationRepository.parseTranslationsJson(content);
   }
 
   @override
@@ -106,23 +106,5 @@ class AnthropicRepository implements TranslationRepository {
         'Consider using a model with higher output limits.',
       );
     }
-  }
-
-  Map<String, String> _getParsedResponse(String content) {
-    var cleanedContent = content.trim();
-    if (cleanedContent.startsWith('```')) {
-      final firstNewline = cleanedContent.indexOf('\n');
-      if (firstNewline != -1) {
-        cleanedContent = cleanedContent.substring(firstNewline + 1);
-      }
-      if (cleanedContent.endsWith('```')) {
-        cleanedContent = cleanedContent
-            .substring(0, cleanedContent.length - 3)
-            .trim();
-      }
-    }
-
-    final decoded = jsonDecode(cleanedContent) as Map<String, dynamic>;
-    return decoded.map((k, v) => MapEntry(k, v.toString()));
   }
 }
