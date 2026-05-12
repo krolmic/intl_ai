@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -20,6 +21,7 @@ class OpenAiRepository implements TranslationRepository {
 
   static const _endpoint = 'https://api.openai.com/v1/chat/completions';
   static const _maxRetries = 3;
+  static const _requestTimeout = Duration(minutes: 3);
   static const _retryDelays = [
     Duration(seconds: 1),
     Duration(seconds: 4),
@@ -63,14 +65,27 @@ class OpenAiRepository implements TranslationRepository {
 
     http.Response? response;
     for (var attempt = 0; attempt < _maxRetries; attempt++) {
-      response = await _client.post(
-        Uri.parse(_endpoint),
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
+      try {
+        response = await _client
+            .post(
+              Uri.parse(_endpoint),
+              headers: {
+                'Authorization': 'Bearer $apiKey',
+                'Content-Type': 'application/json',
+              },
+              body: body,
+            )
+            .timeout(_requestTimeout);
+      } on TimeoutException {
+        if (attempt == _maxRetries - 1) {
+          throw IntlAiException(
+            'OpenAI request timed out after $_maxRetries attempts of '
+            '${_requestTimeout.inMinutes} minutes each.',
+          );
+        }
+        await Future<void>.delayed(_retryDelays[attempt]);
+        continue;
+      }
 
       if (response.statusCode == 200) break;
 

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl_ai/src/config/ai_translation_config.dart';
 import 'package:intl_ai/src/intl_ai_exception.dart';
@@ -258,5 +260,87 @@ void main() {
         );
       },
     );
+
+    test('retries once on TimeoutException then returns translations', () {
+      final translations = {'hello': 'Hallo'};
+      final successBody = jsonEncode({
+        'choices': [
+          {
+            'message': {'content': jsonEncode(translations)},
+          },
+        ],
+      });
+
+      var call = 0;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async {
+        call++;
+        if (call == 1) {
+          throw TimeoutException('timed out');
+        }
+        return http.Response(successBody, 200);
+      });
+
+      final repository = makeRepository();
+
+      fakeAsync((async) {
+        Map<String, String>? result;
+        unawaited(
+          repository
+              .getTranslations(
+                keys: {'hello': 'Hello'},
+                sourceLocale: 'en',
+                targetLocale: 'de',
+                config: config,
+              )
+              .then((value) => result = value),
+        );
+        async.elapse(const Duration(seconds: 2));
+
+        expect(result!['hello'], 'Hallo');
+        expect(call, 2);
+      });
+    });
+
+    test('throws $IntlAiException after all retries time out', () {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => throw TimeoutException('timed out'));
+
+      final repository = makeRepository();
+
+      fakeAsync((async) {
+        Object? error;
+        unawaited(
+          repository
+              .getTranslations(
+                keys: {'hello': 'Hello'},
+                sourceLocale: 'en',
+                targetLocale: 'de',
+                config: config,
+              )
+              .catchError((Object e) {
+                error = e;
+                return <String, String>{};
+              }),
+        );
+        async.elapse(const Duration(seconds: 30));
+
+        expect(error, isA<IntlAiException>());
+        expect(
+          (error! as IntlAiException).message,
+          allOf(contains('timed out after'), contains('OpenAI')),
+        );
+      });
+    });
   });
 }
