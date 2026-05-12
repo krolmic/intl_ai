@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -21,6 +22,7 @@ class AnthropicRepository implements TranslationRepository {
   static const _endpoint = 'https://api.anthropic.com/v1/messages';
   static const _anthropicVersion = '2023-06-01';
   static const _maxRetries = 3;
+  static const _requestTimeout = Duration(minutes: 3);
   static const _retryDelays = [
     Duration(seconds: 1),
     Duration(seconds: 4),
@@ -64,15 +66,28 @@ class AnthropicRepository implements TranslationRepository {
 
     http.Response? response;
     for (var attempt = 0; attempt < _maxRetries; attempt++) {
-      response = await _client.post(
-        Uri.parse(_endpoint),
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': _anthropicVersion,
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
+      try {
+        response = await _client
+            .post(
+              Uri.parse(_endpoint),
+              headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': _anthropicVersion,
+                'Content-Type': 'application/json',
+              },
+              body: body,
+            )
+            .timeout(_requestTimeout);
+      } on TimeoutException {
+        if (attempt == _maxRetries - 1) {
+          throw IntlAiException(
+            'Anthropic request timed out after $_maxRetries attempts of '
+            '${_requestTimeout.inMinutes} minutes each.',
+          );
+        }
+        await Future<void>.delayed(_retryDelays[attempt]);
+        continue;
+      }
 
       if (response.statusCode == 200) break;
 
