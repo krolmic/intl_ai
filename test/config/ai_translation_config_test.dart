@@ -84,4 +84,138 @@ void main() {
       );
     });
   });
+
+  group('AiTranslationConfig equality', () {
+    const baseConfig = AiTranslationConfig(
+      provider: AiTranslationProvider.openai,
+      model: 'gpt-4.1-mini',
+      apiKeyEnv: 'OPENAI_API_KEY',
+      doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+      context: 'A focus timer app',
+    );
+
+    test('identical instances are equal', () {
+      expect(baseConfig, equals(baseConfig));
+    });
+
+    test('instances with identical field values are equal', () {
+      final phrases = <String>['Deep Work', 'Flutter'];
+      final other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: phrases,
+        context: 'A focus timer app',
+      );
+      expect(identical(baseConfig, other), isFalse);
+      expect(baseConfig, equals(other));
+      expect(baseConfig.hashCode, other.hashCode);
+    });
+
+    test('differs in provider', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.anthropic,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+    });
+
+    test('differs in model', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4o',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+    });
+
+    test('differs in apiKeyEnv', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OTHER_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+    });
+
+    test('differs in context', () {
+      const otherWithDifferentContext = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+        context: 'A different app',
+      );
+      const otherWithNullContext = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Flutter'],
+      );
+      expect(baseConfig, isNot(equals(otherWithDifferentContext)));
+      expect(baseConfig, isNot(equals(otherWithNullContext)));
+    });
+
+    test('differs in doNotTranslatePhrases contents', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work', 'Dart'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+      expect(baseConfig.hashCode, isNot(other.hashCode));
+    });
+
+    test('differs in doNotTranslatePhrases length', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Deep Work'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+    });
+
+    test('differs in doNotTranslatePhrases order', () {
+      const other = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: ['Flutter', 'Deep Work'],
+        context: 'A focus timer app',
+      );
+      expect(baseConfig, isNot(equals(other)));
+    });
+
+    test('equal doNotTranslatePhrases from different list instances', () {
+      final phrasesA = <String>['Deep Work', 'Flutter'];
+      final phrasesB = <String>['Deep Work', 'Flutter'];
+      final a = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: phrasesA,
+        context: 'A focus timer app',
+      );
+      final b = AiTranslationConfig(
+        provider: AiTranslationProvider.openai,
+        model: 'gpt-4.1-mini',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        doNotTranslatePhrases: phrasesB,
+        context: 'A focus timer app',
+      );
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+  });
 }

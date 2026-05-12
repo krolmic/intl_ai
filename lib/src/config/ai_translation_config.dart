@@ -62,16 +62,32 @@ class AiTranslationConfig {
   final String? context;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AiTranslationConfig &&
-          provider == other.provider &&
-          model == other.model &&
-          apiKeyEnv == other.apiKeyEnv &&
-          context == other.context;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AiTranslationConfig) return false;
+    if (provider != other.provider) return false;
+    if (model != other.model) return false;
+    if (apiKeyEnv != other.apiKeyEnv) return false;
+    if (context != other.context) return false;
+    if (doNotTranslatePhrases.length != other.doNotTranslatePhrases.length) {
+      return false;
+    }
+    for (var i = 0; i < doNotTranslatePhrases.length; i++) {
+      if (doNotTranslatePhrases[i] != other.doNotTranslatePhrases[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @override
-  int get hashCode => Object.hash(provider, model, apiKeyEnv, context);
+  int get hashCode => Object.hash(
+    provider,
+    model,
+    apiKeyEnv,
+    context,
+    Object.hashAll(doNotTranslatePhrases),
+  );
 }
 
 enum AiTranslationProvider {
