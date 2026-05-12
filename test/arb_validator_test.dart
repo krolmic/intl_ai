@@ -318,8 +318,8 @@ void main() {
       final logs = <LogRecord>[];
       final sub = Logger('IntlAi.ArbValidator').onRecord.listen(logs.add);
 
-      ArbValidator.pluralCategoriesFor('qzz');
-      ArbValidator.pluralCategoriesFor('qzz');
+      ArbValidator.getPluralCategoriesForLocale('qzz');
+      ArbValidator.getPluralCategoriesForLocale('qzz');
 
       await sub.cancel();
       Logger.root.level = originalLevel;
@@ -369,53 +369,56 @@ void main() {
     });
   });
 
-  group('ArbValidator.pluralCategoriesFor', () {
+  group('ArbValidator.getPluralCategoriesForLocale', () {
     test('resolves en to {one, other}', () {
       expect(
-        ArbValidator.pluralCategoriesFor('en'),
+        ArbValidator.getPluralCategoriesForLocale('en'),
         equals({'one', 'other'}),
       );
     });
 
     test('resolves fr to {one, many, other}', () {
       expect(
-        ArbValidator.pluralCategoriesFor('fr'),
+        ArbValidator.getPluralCategoriesForLocale('fr'),
         equals({'one', 'many', 'other'}),
       );
     });
 
     test('resolves ar to {zero, one, two, few, many, other}', () {
       expect(
-        ArbValidator.pluralCategoriesFor('ar'),
+        ArbValidator.getPluralCategoriesForLocale('ar'),
         equals({'zero', 'one', 'two', 'few', 'many', 'other'}),
       );
     });
 
     test('resolves ja to {other}', () {
-      expect(ArbValidator.pluralCategoriesFor('ja'), equals({'other'}));
+      expect(
+        ArbValidator.getPluralCategoriesForLocale('ja'),
+        equals({'other'}),
+      );
     });
 
     test('resolves pl to {one, few, many, other}', () {
       expect(
-        ArbValidator.pluralCategoriesFor('pl'),
+        ArbValidator.getPluralCategoriesForLocale('pl'),
         equals({'one', 'few', 'many', 'other'}),
       );
     });
 
     test('returns null for unmapped locale', () {
-      expect(ArbValidator.pluralCategoriesFor('qzz'), isNull);
+      expect(ArbValidator.getPluralCategoriesForLocale('qzz'), isNull);
     });
 
     test('resolves pt_br via case-insensitive registry lookup', () {
       expect(
-        ArbValidator.pluralCategoriesFor('pt_br'),
+        ArbValidator.getPluralCategoriesForLocale('pt_br'),
         equals({'one', 'many', 'other'}),
       );
     });
 
     test('repeat calls return the same cached Set instance', () {
-      final first = ArbValidator.pluralCategoriesFor('de');
-      final second = ArbValidator.pluralCategoriesFor('de');
+      final first = ArbValidator.getPluralCategoriesForLocale('de');
+      final second = ArbValidator.getPluralCategoriesForLocale('de');
       expect(identical(first, second), isTrue);
     });
   });

@@ -1,9 +1,8 @@
 import 'dart:collection';
 
 // We access package:intl's plural-rule registry directly to detect whether a
-// locale has CLDR plural rules and to probe its supported categories. There is
-// no public API for this — see the brainstorm doc for the trade-off analysis.
-// ignore: implementation_imports
+// locale has CLDR plural rules and to probe its supported categories.
+// There is no public API for this.
 import 'package:intl/src/plural_rules.dart' as plural_rules;
 import 'package:intl_ai/src/utils.dart';
 import 'package:logging/logging.dart';
@@ -46,7 +45,7 @@ class ArbValidator {
   // intl supports: integers cover one/two/few/many ranges (e.g. 5–6 for pl
   // MANY, 11/21 for ru, 1_000_000 for fr/pt MANY), fractions force the
   // non-integer OTHER cases.
-  static const _probeNumbers = <num>[
+  static const _pluralCategoryProbeNumbers = <num>[
     0,
     1,
     2,
@@ -63,13 +62,13 @@ class ArbValidator {
     2.5,
   ];
 
-  static final Map<String, Set<String>?> _pluralCategoryCache = {};
+  static final Map<String, Set<String>?> _pluralCategoriesByLocale = {};
 
   @visibleForTesting
-  static void resetPluralCategoryCache() => _pluralCategoryCache.clear();
+  static void resetPluralCategoryCache() => _pluralCategoriesByLocale.clear();
 
   static List<String> extractPlaceholders(String value) {
-    final stripped = _stripIcuArgBlocks(value);
+    final stripped = _stripPluralSelectGenderBlocks(value);
     final simple = RegExp(r'\{(\w+)\}');
     return simple.allMatches(stripped).map((m) => m.group(1)!).toSet().toList();
   }
@@ -77,33 +76,44 @@ class ArbValidator {
   // Removes ICU plural/select/gender arg blocks so simple-placeholder
   // extraction doesn't pick up raw words from branch bodies (e.g. `{x}`
   // inside `one{x}`) as if they were placeholders.
-  static String _stripIcuArgBlocks(String value) {
-    final sb = StringBuffer();
-    var i = 0;
-    final end = value.length;
-    while (i < end) {
-      final ch = value[i];
-      if (ch == "'") {
-        final next = _skipQuotedSection(value, i, end);
-        sb.write(value.substring(i, next));
-        i = next;
+  static String _stripPluralSelectGenderBlocks(String value) {
+    final output = StringBuffer();
+    var currentIndex = 0;
+    final valueLength = value.length;
+    while (currentIndex < valueLength) {
+      final currentCharacter = value[currentIndex];
+      if (currentCharacter == "'") {
+        final quotedSectionEndIndex = _skipQuotedSection(
+          value,
+          currentIndex,
+          valueLength,
+        );
+        output.write(value.substring(currentIndex, quotedSectionEndIndex));
+        currentIndex = quotedSectionEndIndex;
         continue;
       }
-      if (ch == '{') {
-        final closeIdx = _findMatchingClose(value, i, end);
-        final inner = value.substring(i + 1, closeIdx - 1);
-        if (_parseArgHeader(inner) != null) {
-          i = closeIdx;
+      if (currentCharacter == '{') {
+        final blockEndIndex = _findMatchingClose(
+          value,
+          currentIndex,
+          valueLength,
+        );
+        final blockContents = value.substring(
+          currentIndex + 1,
+          blockEndIndex - 1,
+        );
+        if (_parseArgHeader(blockContents) != null) {
+          currentIndex = blockEndIndex;
           continue;
         }
-        sb.write(value.substring(i, closeIdx));
-        i = closeIdx;
+        output.write(value.substring(currentIndex, blockEndIndex));
+        currentIndex = blockEndIndex;
         continue;
       }
-      sb.write(ch);
-      i++;
+      output.write(currentCharacter);
+      currentIndex++;
     }
-    return sb.toString();
+    return output.toString();
   }
 
   static String? validateIcuSyntax(String value) {
@@ -174,60 +184,75 @@ class ArbValidator {
   /// language subtag if the canonical locale is not registered. Returns
   /// `null` when neither form is in the registry; results are cached per
   /// canonical locale.
-  static Set<String>? pluralCategoriesFor(String locale) {
-    final canonical = canonicalizeLocale(locale);
-    if (_pluralCategoryCache.containsKey(canonical)) {
-      return _pluralCategoryCache[canonical];
+  static Set<String>? getPluralCategoriesForLocale(String locale) {
+    final canonicalLocale = canonicalizeLocale(locale);
+    if (_pluralCategoriesByLocale.containsKey(canonicalLocale)) {
+      return _pluralCategoriesByLocale[canonicalLocale];
     }
 
-    final probed =
-        _resolvePluralCategoriesViaIntl(canonical) ??
-        _resolvePluralCategoriesViaIntl(_languageSubtag(canonical));
-    final resolved = probed == null ? null : UnmodifiableSetView(probed);
+    final resolvedCategories =
+        _getPluralCategoriesFromIntlRegistry(canonicalLocale) ??
+        _getPluralCategoriesFromIntlRegistry(
+          _getLanguageSubtag(canonicalLocale),
+        );
+    final cachedCategories = resolvedCategories == null
+        ? null
+        : UnmodifiableSetView(resolvedCategories);
 
-    _pluralCategoryCache[canonical] = resolved;
-    if (resolved == null) {
+    _pluralCategoriesByLocale[canonicalLocale] = cachedCategories;
+    if (cachedCategories == null) {
       _log.fine(
         () =>
             "Skipping plural-category validation for locale '$locale': "
             "not in package:intl's plural-rule registry.",
       );
     }
-    return resolved;
+    return cachedCategories;
   }
 
-  static String _languageSubtag(String canonical) {
-    final idx = canonical.indexOf('_');
-    return idx == -1 ? canonical : canonical.substring(0, idx);
+  static String _getLanguageSubtag(String canonicalLocale) {
+    final separatorIndex = canonicalLocale.indexOf('_');
+    return separatorIndex == -1
+        ? canonicalLocale
+        : canonicalLocale.substring(0, separatorIndex);
   }
 
-  static Set<String>? _resolvePluralCategoriesViaIntl(String canonical) {
-    final registryKey = _findIntlRegistryKey(canonical);
-    if (registryKey == null) return null;
+  static Set<String>? _getPluralCategoriesFromIntlRegistry(
+    String localeCandidate,
+  ) {
+    final intlRegistryLocaleKey = _getIntlPluralRuleLocaleKey(localeCandidate);
+    if (intlRegistryLocaleKey == null) return null;
 
-    final rule = plural_rules.pluralRules[registryKey];
-    if (rule == null) return null;
+    final pluralRule = plural_rules.pluralRules[intlRegistryLocaleKey];
+    if (pluralRule == null) return null;
 
-    final categories = <String>{};
-    for (final n in _probeNumbers) {
+    final pluralCategories = <String>{};
+    for (final probeNumber in _pluralCategoryProbeNumbers) {
       // Pass null precision for fractional probes so intl uses the actual
       // decimal count (v); the default precision 0 forces v=0, masking the
       // non-integer OTHER cases.
-      plural_rules.startRuleEvaluation(n, n is int ? 0 : null);
-      categories.add(_pluralCaseName(rule()));
+      plural_rules.startRuleEvaluation(
+        probeNumber,
+        probeNumber is int ? 0 : null,
+      );
+      pluralCategories.add(_getPluralCategoryFromPluralCase(pluralRule()));
     }
-    return categories;
+    return pluralCategories;
   }
 
-  static String? _findIntlRegistryKey(String canonical) {
-    for (final key in plural_rules.pluralRules.keys) {
-      if (key.toLowerCase() == canonical) return key;
+  static String? _getIntlPluralRuleLocaleKey(String localeCandidate) {
+    for (final registeredLocaleKey in plural_rules.pluralRules.keys) {
+      if (registeredLocaleKey.toLowerCase() == localeCandidate) {
+        return registeredLocaleKey;
+      }
     }
     return null;
   }
 
-  static String _pluralCaseName(plural_rules.PluralCase c) {
-    switch (c) {
+  static String _getPluralCategoryFromPluralCase(
+    plural_rules.PluralCase pluralCase,
+  ) {
+    switch (pluralCase) {
       case plural_rules.PluralCase.ZERO:
         return 'zero';
       case plural_rules.PluralCase.ONE:
@@ -270,7 +295,7 @@ class ArbValidator {
     }
 
     if (targetLocale != null) {
-      final allowed = pluralCategoriesFor(targetLocale);
+      final allowed = getPluralCategoriesForLocale(targetLocale);
       if (allowed != null) {
         final pluralError = _validatePluralCategories(
           translatedArgs,
